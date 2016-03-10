@@ -1,5 +1,7 @@
 #!/bin/bash
 
+WHOAMI=$(whoami)
+
 # Adapted from https://wiki.debian.org/AutomateBackports
 
 umask 022
@@ -59,4 +61,27 @@ Tree "dists/wheezy" {
   Sections "main";
   Architectures "amd64 source";
 };
+EOF
+
+cat >~/.dupload.conf <<EOF
+package config;
+
+$preupload{'changes'} = '';
+$cfg{"localhost"} = {
+fqdn => "localhost",
+method => "scpb",
+incoming => "/home/${WHOAMI}/Backports/debian/pool/main",
+# The dinstall on ftp-master sends emails itself
+dinstall_runs => 1,
+};
+
+$cfg{'localhost'}{postupload}{'changes'} = "
+echo 'cd /home/${WHOAMI}/Backports/debian ;
+apt-ftparchive generate -c=aptftp.conf aptgenerate.conf;
+apt-ftparchive release -c=aptftp.conf dists/wheezy >dists/wheezy/Release;
+rm -f dists/wheezy/Release.gpg ;
+gpg -u 2F48295A -bao dists/wheezy/Release.gpg dists/wheezy/Release'|sh ;
+echo 'Package archive created!'";
+
+1;
 EOF
